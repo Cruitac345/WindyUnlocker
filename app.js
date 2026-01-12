@@ -16,9 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateBookmarklet();
 });
 
-// Копирование кода
 function copyCode() {
-    // Копируем короткий загрузчик
     navigator.clipboard.writeText(bypassCodeForDisplay).then(() => {
         showToast('✅ Код скопирован! Вставьте в консоль на windy.com');
     }).catch(() => {
@@ -33,7 +31,6 @@ function copyCode() {
 }
 
 function downloadUserscript() {
-    // Загружаем bypass.js и создаём userscript
     fetch('bypass.js?t=' + Date.now())
         .then(r => r.text())
         .then(bypassCode => {
@@ -135,3 +132,4 @@ function updateBookmarklet() {
         bookmarkletLink.href = bookmarkletCode;
     }
 }
+
