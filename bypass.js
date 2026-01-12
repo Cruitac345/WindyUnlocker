@@ -505,61 +505,175 @@
     }
     
     function modifyUI() {
-        const loginSelectors = [
-            '.premium-button', 
-            '.rhpane__top-icons__login', 
-            '[class*="login-btn"]',
-            '[class*="premium-btn"]',
-            '.user-button',
-            '#login-button'
-        ];
-        
-        loginSelectors.forEach(selector => {
-            const btn = document.querySelector(selector);
-            if (btn && !btn.dataset.bypassed) {
-                btn.dataset.bypassed = 'true';
-                btn.innerHTML = '✓ Premium';
-                btn.style.cssText = `
-                    background: linear-gradient(135deg, #4CAF50, #45a049) !important;
-                    color: white !important;
+        if (!document.getElementById('windy-bypass-ui-styles')) {
+            const uiStyles = document.createElement('style');
+            uiStyles.id = 'windy-bypass-ui-styles';
+            uiStyles.textContent = `
+                .windy-bypass-btn {
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    gap: 6px !important;
                     border: none !important;
-                    border-radius: 5px !important;
-                    padding: 5px 10px !important;
-                `;
-                btn.onclick = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    showNotification('Premium аккаунт активен!');
-                };
-            }
-        });
+                    border-radius: 20px !important;
+                    padding: 8px 16px !important;
+                    font-size: 13px !important;
+                    font-weight: 600 !important;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+                    white-space: nowrap !important;
+                    overflow: visible !important;
+                    min-width: auto !important;
+                    height: auto !important;
+                    line-height: 1 !important;
+                    text-decoration: none !important;
+                    box-sizing: border-box !important;
+                    transition: all 0.2s ease !important;
+                }
+                
+                .windy-bypass-premium {
+                    background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%) !important;
+                    color: white !important;
+                    cursor: pointer !important;
+                    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4) !important;
+                }
+                
+                .windy-bypass-premium:hover {
+                    background: linear-gradient(135deg, #66BB6A 0%, #43A047 100%) !important;
+                    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.5) !important;
+                    transform: translateY(-1px) !important;
+                }
+                
+                .windy-bypass-account {
+                    background: #9CA3AF !important;
+                    color: #F3F4F6 !important;
+                    cursor: not-allowed !important;
+                    pointer-events: none !important;
+                    opacity: 0.8 !important;
+                    box-shadow: none !important;
+                }
+                
+                .windy-bypass-btn > *:not(.bypass-icon):not(.bypass-text) {
+                    display: none !important;
+                }
+                
+                .bypass-icon {
+                    font-size: 14px !important;
+                    line-height: 1 !important;
+                    flex-shrink: 0 !important;
+                    display: inline-block !important;
+                }
+                
+                .bypass-text {
+                    font-size: 13px !important;
+                    line-height: 1 !important;
+                    white-space: nowrap !important;
+                    display: inline-block !important;
+                }
+                
+                .rhpane__top-icons,
+                [class*="top-icons"],
+                [class*="header-buttons"] {
+                    display: flex !important;
+                    align-items: center !important;
+                    gap: 10px !important;
+                }
+            `;
+            document.head.appendChild(uiStyles);
+        }
         
-        const premiumIcons = [
+        const premiumSelectors = [
             '#desktop-premium-icon', 
             '[class*="premium-icon"]',
+            '[class*="premium-button"]',
+            '[class*="premium-btn"]',
             '.premium-badge',
             '.pro-badge'
         ];
         
-        premiumIcons.forEach(selector => {
-            const icon = document.querySelector(selector);
-            if (icon && !icon.dataset.bypassed) {
-                icon.dataset.bypassed = 'true';
-                icon.style.cssText = `
-                    background: linear-gradient(135deg, #4CAF50, #45a049) !important;
-                    border-radius: 5px !important;
-                `;
-                icon.title = 'Premium Activated ✓';
-            }
+        premiumSelectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(btn => {
+                if (btn && !btn.dataset.bypassed) {
+                    btn.dataset.bypassed = 'true';
+                    
+                    btn.innerHTML = '';
+                    btn.classList.add('windy-bypass-btn', 'windy-bypass-premium');
+                    
+                    const icon = document.createElement('span');
+                    icon.className = 'bypass-icon';
+                    icon.textContent = '✓';
+                    btn.appendChild(icon);
+                    
+                    const text = document.createElement('span');
+                    text.className = 'bypass-text';
+                    text.textContent = 'Premium';
+                    btn.appendChild(text);
+                    
+                    btn.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showNotification('Premium аккаунт активен!');
+                        return false;
+                    };
+                    
+                    btn.removeAttribute('href');
+                    btn.title = 'Premium Activated';
+                }
+            });
         });
         
-        // Скрываем рекламу и промо
+        const accountSelectors = [
+            '.rhpane__top-icons__login',
+            '[class*="login-btn"]',
+            '[class*="login-button"]',
+            '[class*="account-btn"]',
+            '[class*="user-button"]',
+            '#login-button',
+            'a[href*="login"]',
+            'a[href*="account"]'
+        ];
+        
+        accountSelectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(btn => {
+                if (btn && !btn.dataset.bypassed && !btn.classList.contains('windy-bypass-premium')) {
+                    btn.dataset.bypassed = 'true';
+                    
+                    btn.innerHTML = '';
+                    btn.classList.add('windy-bypass-btn', 'windy-bypass-account');
+                    
+                    const icon = document.createElement('span');
+                    icon.className = 'bypass-icon';
+                    icon.textContent = '👤';
+                    btn.appendChild(icon);
+                    
+                    const text = document.createElement('span');
+                    text.className = 'bypass-text';
+                    text.textContent = 'tester';
+                    btn.appendChild(text);
+                    
+                    btn.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    };
+                    btn.onmousedown = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    };
+                    
+                    btn.removeAttribute('href');
+                    btn.style.pointerEvents = 'none';
+                    btn.title = 'tester';
+                }
+            });
+        });
+        
         const hideSelectors = [
             '[class*="upgrade"]',
             '[class*="upsell"]', 
-            '[class*="promo"]',
+            '[class*="promo"]:not([class*="product"])',
             '[class*="advertisement"]',
-            '[class*="ad-"]',
+            '[class*="ad-banner"]',
             '.premium-promo',
             '.upgrade-banner',
             '.subscription-prompt'
@@ -567,7 +681,7 @@
         
         hideSelectors.forEach(selector => {
             document.querySelectorAll(selector).forEach(el => {
-                if (!el.closest('nav') && !el.closest('header')) {
+                if (!el.closest('nav') && !el.closest('header') && !el.closest('[class*="menu"]')) {
                     el.style.display = 'none';
                 }
             });
@@ -686,7 +800,7 @@
         notification.id = 'windy-bypass-notification';
         notification.innerHTML = `
             <div style="display: flex; align-items: center; gap: 12px;">
-                <span style="font-size: 28px;">🌪️</span>
+                <span style="font-size: 28px;"></span>
                 <div>
                     <div style="font-weight: bold; font-size: 15px;">Windy Premium Bypass</div>
                     <div style="font-size: 13px; opacity: 0.9; margin-top: 2px;">${message}</div>
@@ -867,3 +981,4 @@
     }
     
 })();
+
