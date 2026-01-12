@@ -1,33 +1,39 @@
-// === WINDY PREMIUM BYPASS v1.0 ===
-
 (function() {
     'use strict';
     
-    console.log('🌪️ Windy Premium Bypass v2.0 Starting...');
+    if (!location.hostname.includes('windy.com')) {
+        alert('⚠️ Откройте windy.com и запустите снова!');
+        return;
+    }
     
-    let bypassActive = false;
+    if (window.__windyBypassActive) {
+        console.log('⚠️ Bypass already active');
+        return;
+    }
+    window.__windyBypassActive = true;
     
-    // ==========================================
-    // 1. БЛОКИРОВКА РЕКЛАМЫ И АНАЛИТИКИ
-    // ==========================================
+    console.log('Windy Premium Bypass v1.0 Starting...');
+    
     function setupRequestBlocking() {
-        // Перехват Fetch
         const originalFetch = window.fetch;
         window.fetch = function(...args) {
             const url = args[0];
             
             if (typeof url === 'string') {
-                // Разрешаем запросы данных прогноза
                 if (url.includes('detail2') || url.includes('12do-detail2') || 
-                    url.includes('forecast') || url.includes('weather')) {
+                    url.includes('forecast') || url.includes('weather') ||
+                    url.includes('node') || url.includes('tile')) {
                     console.log('✅ Data request allowed:', url.substring(0, 60));
                     return originalFetch.apply(this, args);
                 }
                 
-                // Блокируем платежи и аналитику
-                const blocked = ['paddle.com', 'stripe.com', 'paypal.com', 
-                                'analytics', 'subscription', 'premium-check',
-                                'google-analytics', 'gtm', 'hotjar'];
+                const blocked = [
+                    'paddle.com', 'stripe.com', 'paypal.com',
+                    'analytics', 'subscription', 'premium-check',
+                    'google-analytics', 'gtm', 'hotjar',
+                    'facebook', 'doubleclick', 'googlesyndication',
+                    'adservice', 'tracking'
+                ];
                 
                 if (blocked.some(p => url.toLowerCase().includes(p))) {
                     console.log('🚫 Blocked:', url.substring(0, 50));
@@ -40,7 +46,6 @@
             return originalFetch.apply(this, args);
         };
         
-        // Перехват XMLHttpRequest
         const originalOpen = XMLHttpRequest.prototype.open;
         const originalSend = XMLHttpRequest.prototype.send;
         
@@ -51,9 +56,13 @@
         
         XMLHttpRequest.prototype.send = function(...args) {
             if (this._url && typeof this._url === 'string') {
-                const blockedPatterns = ['subscription', 'premium-status', 'payment'];
+                const blockedPatterns = ['subscription', 'premium-status', 'payment', 'analytics'];
                 if (blockedPatterns.some(p => this._url.includes(p))) {
                     console.log('🚫 XHR Blocked:', this._url.substring(0, 50));
+                    Object.defineProperty(this, 'responseText', {
+                        value: JSON.stringify({premium: true, status: 'active'})
+                    });
+                    Object.defineProperty(this, 'status', {value: 200});
                     return;
                 }
             }
@@ -63,22 +72,19 @@
         console.log('✅ Request blocking active');
     }
     
-    // ==========================================
-    // 2. ПОДМЕНА СИСТЕМЫ ПОДПИСКИ
-    // ==========================================
     function hackSubscriptionSystem() {
-        // Поиск store объекта
         const storeObjects = [window.wt, window.W?.store, window.store, window.W?.wt];
         
         for (let store of storeObjects) {
             if (store && typeof store.get === 'function') {
-                const originalGet = store.get;
+                const originalGet = store.get.bind(store);
                 store.get = function(key) {
                     const premiumKeys = ['subscription', 'premium', 'subscriptionInfo', 
-                                        'isPremium', 'userType', 'tier'];
+                                        'isPremium', 'userType', 'tier', 'plan',
+                                        'account', 'user'];
                     
                     if (premiumKeys.some(k => key.toLowerCase().includes(k.toLowerCase()))) {
-                        console.log('🔓 Premium key intercepted:', key);
+                        console.log('Premium key intercepted:', key);
                         
                         if (key === 'subscriptionInfo' || key === 'subscription') {
                             return {
@@ -87,23 +93,37 @@
                                 tier: 'premium',
                                 state: 'active',
                                 status: 'active',
-                                validUntil: new Date(2099, 11, 31).toISOString()
+                                plan: 'premium',
+                                validUntil: new Date(2099, 11, 31).toISOString(),
+                                expiresAt: new Date(2099, 11, 31).toISOString()
                             };
+                        }
+                        if (key === 'isPremium' || key === 'premium') {
+                            return true;
                         }
                         return 'premium';
                     }
-                    return originalGet.call(this, key);
+                    return originalGet(key);
                 };
                 
-                // Также перехватываем set
                 if (typeof store.set === 'function') {
-                    const originalSet = store.set;
+                    const originalSet = store.set.bind(store);
                     store.set = function(key, value) {
                         if (key.includes('premium') || key.includes('subscription')) {
-                            console.log('🔒 Prevented premium reset:', key);
-                            return; // Блокируем сброс премиума
+                            console.log('Prevented premium reset:', key);
+                            return;
                         }
-                        return originalSet.call(this, key, value);
+                        return originalSet(key, value);
+                    };
+                }
+                
+                if (typeof store.on === 'function') {
+                    const originalOn = store.on.bind(store);
+                    store.on = function(event, callback) {
+                        if (event.includes('premium') || event.includes('subscription')) {
+                            return originalOn(event, () => callback({premium: true, status: 'active'}));
+                        }
+                        return originalOn(event, callback);
                     };
                 }
                 
@@ -112,79 +132,148 @@
             }
         }
         
-        // Создаем фейковый store если не найден
         if (!window.wt) {
             window.wt = {
-                get: (key) => key.includes('premium') || key.includes('subscription') ? 'premium' : null,
+                get: (key) => {
+                    if (key.includes('premium') || key.includes('subscription')) {
+                        return key.includes('Info') ? {isPremium: true, status: 'active'} : 'premium';
+                    }
+                    return null;
+                },
                 set: () => true,
                 on: () => {},
-                off: () => {}
+                off: () => {},
+                emit: () => {}
             };
         }
         
-        // Глобальные флаги
         window.isPremium = true;
         window.isSubscribed = true;
         window.premiumUser = true;
+        window.hasPremium = true;
         
-        // Перехват проверочных функций (minified names)
-        const checkFunctions = ['Dr', 'Mr', 'Pr', 'isPremium', 'checkPremium', 'validateSubscription'];
+        if (window.W) {
+            window.W.isPremium = true;
+            window.W.premium = true;
+            window.W.hasPremium = true;
+        }
+        
+        const checkFunctions = ['Dr', 'Mr', 'Pr', 'Lr', 'Kr', 'isPremium', 'checkPremium', 
+                                'validateSubscription', 'isSubscribed', 'getPremiumStatus'];
         checkFunctions.forEach(fn => {
             if (typeof window[fn] === 'function') {
-                window[fn] = () => true;
+                const orig = window[fn];
+                window[fn] = function(...args) {
+                    const result = orig.apply(this, args);
+                    if (result === false || result === null || result === undefined) {
+                        return true;
+                    }
+                    return result;
+                };
                 console.log('✅ Bypassed check function:', fn);
             }
         });
+        
+        console.log('✅ Subscription system hacked');
     }
     
-    // ==========================================
-    // 3. РАЗБЛОКИРОВКА СЛОЁВ КАРТЫ
-    // ==========================================
     function unlockMapLayers() {
-        // CSS для принудительного отображения
         const style = document.createElement('style');
+        style.id = 'windy-bypass-styles';
         style.textContent = `
-            /* Показываем скрытые слои */
-            canvas, .leaflet-layer, .wind-layer, .temp-layer, 
-            .rain-layer, .cloud-layer, .weather-layer, 
-            [class*="layer"], [class*="overlay"] {
+            canvas, 
+            .leaflet-layer, 
+            .leaflet-tile-pane,
+            .wind-layer, 
+            .temp-layer, 
+            .rain-layer, 
+            .cloud-layer, 
+            .weather-layer,
+            .particle-layer,
+            [class*="layer"], 
+            [class*="overlay"],
+            [class*="tile"] {
                 visibility: visible !important;
                 opacity: 1 !important;
                 display: block !important;
             }
             
-            /* Скрываем премиум блокировки */
-            .premium-overlay, .gray-overlay, .locked-overlay,
-            .subscription-required, .paywall, .premium-block,
-            .premium-blur, .upgrade-prompt, [class*="premium-lock"],
-            [class*="subscribe"], [class*="paywall"] {
+            .premium-overlay, 
+            .gray-overlay, 
+            .locked-overlay,
+            .subscription-required, 
+            .paywall, 
+            .premium-block,
+            .premium-blur, 
+            .upgrade-prompt, 
+            .premium-modal,
+            .subscription-modal,
+            [class*="premium-lock"],
+            [class*="subscribe"], 
+            [class*="paywall"],
+            [class*="upgrade-"],
+            [class*="upsell"],
+            .premium-banner,
+            .pro-feature-locked {
                 display: none !important;
                 visibility: hidden !important;
                 opacity: 0 !important;
                 pointer-events: none !important;
+                height: 0 !important;
+                overflow: hidden !important;
             }
             
-            /* Убираем размытие */
-            .blurred, [class*="blur"] {
+            .blurred, 
+            [class*="blur"]:not(.blur-backdrop) {
                 filter: none !important;
                 -webkit-filter: none !important;
             }
             
-            /* Разблокируем интерактивность */
-            .locked, .disabled, [disabled] {
+            .locked, 
+            .disabled:not([disabled]),
+            .premium-only {
                 pointer-events: auto !important;
                 opacity: 1 !important;
+                cursor: pointer !important;
             }
             
-            /* Премиум индикатор */
             .rhpane__top-icons__login::after {
-                content: " ✓ Premium" !important;
+                content: " ✓" !important;
                 color: #4CAF50 !important;
+                font-weight: bold !important;
+            }
+            
+            .day.premium, 
+            .day.locked,
+            [class*="calendar"] .premium,
+            [class*="calendar"] .locked,
+            .timeline-day.premium,
+            .timeline-day.locked {
+                opacity: 1 !important;
+                pointer-events: auto !important;
+                filter: none !important;
+                cursor: pointer !important;
+            }
+            
+            .day.premium::before,
+            .day.locked::before,
+            .day.premium::after,
+            .day.locked::after {
+                display: none !important;
+            }
+            
+            .lock-icon,
+            [class*="lock-icon"],
+            .premium-icon-lock {
+                display: none !important;
             }
         `;
+        
+        const oldStyle = document.getElementById('windy-bypass-styles');
+        if (oldStyle) oldStyle.remove();
+        
         document.head.appendChild(style);
         
-        // Принудительное включение слоёв через JS
         const activateLayers = () => {
             document.querySelectorAll('canvas, [class*="layer"]').forEach(el => {
                 if (el.style) {
@@ -194,16 +283,38 @@
                 }
             });
             
-            // Удаляем блокирующие элементы
-            document.querySelectorAll('.premium-overlay, .paywall, [class*="premium-lock"]').forEach(el => {
-                el.remove();
+            const blockers = [
+                '.premium-overlay', 
+                '.paywall', 
+                '[class*="premium-lock"]',
+                '.subscription-required',
+                '.upgrade-prompt',
+                '.premium-modal',
+                '.pro-feature-locked'
+            ];
+            
+            blockers.forEach(selector => {
+                document.querySelectorAll(selector).forEach(el => {
+                    el.remove();
+                });
             });
         };
         
         activateLayers();
         
-        // Повторяем при изменениях DOM
-        new MutationObserver(activateLayers).observe(document.body, {
+        const observer = new MutationObserver((mutations) => {
+            let shouldUpdate = false;
+            mutations.forEach(mutation => {
+                if (mutation.addedNodes.length > 0) {
+                    shouldUpdate = true;
+                }
+            });
+            if (shouldUpdate) {
+                activateLayers();
+            }
+        });
+        
+        observer.observe(document.body, {
             childList: true,
             subtree: true
         });
@@ -211,201 +322,374 @@
         console.log('✅ Map layers unlocked');
     }
     
-    // ==========================================
-    // 4. РАЗБЛОКИРОВКА КАЛЕНДАРЯ
-    // ==========================================
     function hackCalendarSystem() {
-        // Перехват класса Calendar
-        const calendarClasses = [window.Mn, window.Calendar, window.W?.Calendar, window.DaySelector];
+        const calendarClasses = [window.Mn, window.Ln, window.Kn, window.Calendar, 
+                                 window.W?.Calendar, window.DaySelector, window.TimelineCalendar];
         
         for (let CalClass of calendarClasses) {
             if (CalClass && typeof CalClass === 'function') {
-                const Original = CalClass;
-                
-                const Patched = function(...args) {
-                    const instance = new Original(...args);
+                try {
+                    const Original = CalClass;
                     
-                    // Убираем премиум ограничения
-                    Object.defineProperties(instance, {
-                        premiumStartDay: { value: 999, writable: true },
-                        premiumStart: { value: null, writable: true },
-                        maxDays: { value: 14, writable: true },
-                        freeDays: { value: 14, writable: true }
-                    });
+                    const Patched = function(...args) {
+                        const instance = new Original(...args);
+                        
+                        if (instance) {
+                            Object.defineProperties(instance, {
+                                premiumStartDay: { value: 999, writable: true, configurable: true },
+                                premiumStart: { value: null, writable: true, configurable: true },
+                                maxDays: { value: 14, writable: true, configurable: true },
+                                freeDays: { value: 14, writable: true, configurable: true },
+                                isPremium: { value: true, writable: true, configurable: true },
+                                hasPremium: { value: true, writable: true, configurable: true }
+                            });
+                            
+                            if (instance.days && Array.isArray(instance.days)) {
+                                instance.days = instance.days.map(day => ({
+                                    ...day,
+                                    premium: false,
+                                    locked: false,
+                                    hasForecast: true,
+                                    available: true,
+                                    disabled: false
+                                }));
+                            }
+                            
+                            if (typeof instance.isPremiumDay === 'function') {
+                                instance.isPremiumDay = () => false;
+                            }
+                            if (typeof instance.isLocked === 'function') {
+                                instance.isLocked = () => false;
+                            }
+                            if (typeof instance.canSelect === 'function') {
+                                instance.canSelect = () => true;
+                            }
+                        }
+                        
+                        return instance;
+                    };
                     
-                    // Патчим массив дней
-                    if (instance.days && Array.isArray(instance.days)) {
-                        instance.days = instance.days.map(day => ({
-                            ...day,
-                            premium: false,
-                            locked: false,
-                            hasForecast: true,
-                            available: true
-                        }));
-                    }
+                    Patched.prototype = Original.prototype;
+                    Object.assign(Patched, Original);
+                    Object.setPrototypeOf(Patched, Original);
                     
-                    return instance;
-                };
-                
-                // Копируем прототип и статические методы
-                Patched.prototype = Original.prototype;
-                Object.assign(Patched, Original);
-                
-                window.Mn = Patched;
-                if (window.W) window.W.Calendar = Patched;
-                
-                console.log('✅ Calendar system hacked');
+                    if (window.Mn === CalClass) window.Mn = Patched;
+                    if (window.Ln === CalClass) window.Ln = Patched;
+                    if (window.Kn === CalClass) window.Kn = Patched;
+                    if (window.W?.Calendar === CalClass) window.W.Calendar = Patched;
+                    
+                    console.log('✅ Calendar class hacked');
+                } catch (e) {
+                    console.log('⚠️ Calendar class patch failed:', e);
+                }
                 break;
             }
         }
         
-        // Разблокировка дней в DOM
-        setInterval(() => {
-            document.querySelectorAll('.day.premium, .day.locked, [class*="day"][class*="premium"]').forEach(day => {
-                day.classList.remove('premium', 'locked', 'disabled');
-                day.style.opacity = '1';
-                day.style.pointerEvents = 'auto';
+        function unlockCalendarDays() {
+            const daySelectors = [
+                '.day.premium',
+                '.day.locked', 
+                '.day.disabled',
+                '[class*="day"][class*="premium"]',
+                '[class*="day"][class*="locked"]',
+                '.timeline-day.premium',
+                '.timeline-day.locked',
+                '.calendar-day.premium',
+                '.calendar-day.locked'
+            ];
+            
+            daySelectors.forEach(selector => {
+                document.querySelectorAll(selector).forEach(day => {
+                    day.classList.remove('premium', 'locked', 'disabled', 'unavailable');
+                    day.style.opacity = '1';
+                    day.style.pointerEvents = 'auto';
+                    day.style.cursor = 'pointer';
+                    day.style.filter = 'none';
+                    day.removeAttribute('disabled');
+                    
+                    day.querySelectorAll('.lock-icon, [class*="lock"]').forEach(lock => lock.remove());
+                });
             });
-        }, 2000);
+        }
+        
+        unlockCalendarDays();
+        setInterval(unlockCalendarDays, 2000);
+        
+        console.log('✅ Calendar system hacked');
     }
     
-    // ==========================================
-    // 5. ПОЧАСОВОЙ ПРОГНОЗ
-    // ==========================================
     function enableHourlyForecast() {
-        // Активация почасового режима
         const activateHourly = () => {
             const hourlyButtons = document.querySelectorAll(`
-                [data-hourly], .hourly-button, .timelapse-1h,
-                [data-mode="hourly"], .timelapse-button:first-child,
-                [title*="hourly"], [title*="1h"]
+                [data-hourly], 
+                .hourly-button, 
+                .timelapse-1h,
+                [data-mode="hourly"], 
+                .timelapse-button:first-child,
+                [title*="hourly"], 
+                [title*="1h"],
+                [title*="1 hour"],
+                .mode-hourly,
+                [data-step="1h"]
             `);
             
             hourlyButtons.forEach(btn => {
                 if (btn && !btn.classList.contains('active')) {
                     btn.click();
-                    console.log('⏰ Hourly mode activated');
+                    btn.classList.add('active');
+                    console.log('⏰ Hourly button clicked');
                 }
             });
             
-            // Хак timelapse объекта
-            const timelapse = window.W?.timelapse || window.timelapse;
+            const timelapse = window.W?.timelapse || window.timelapse || window.W?.timeline;
             if (timelapse) {
                 timelapse._mode = 'hourly';
                 timelapse._isPremium = true;
                 timelapse.hourlyEnabled = true;
+                timelapse.mode = 'hourly';
+                timelapse.step = 1;
+                timelapse.hourly = true;
                 
                 if (typeof timelapse.setMode === 'function') {
-                    timelapse.setMode('hourly');
+                    try {
+                        timelapse.setMode('hourly');
+                    } catch(e) {}
+                }
+                if (typeof timelapse.setStep === 'function') {
+                    try {
+                        timelapse.setStep(1);
+                    } catch(e) {}
                 }
                 if (typeof timelapse._update === 'function') {
-                    timelapse._update();
+                    try {
+                        timelapse._update();
+                    } catch(e) {}
                 }
+                if (typeof timelapse.update === 'function') {
+                    try {
+                        timelapse.update();
+                    } catch(e) {}
+                }
+            }
+            
+            const store = window.wt || window.W?.store;
+            if (store && typeof store.set === 'function') {
+                try {
+                    store.set('hourlyMode', true);
+                    store.set('timelapseMode', 'hourly');
+                    store.set('forecastStep', 1);
+                } catch(e) {}
             }
         };
         
-        // Перехват setMode
-        if (window.W?.timelapse) {
-            const original = window.W.timelapse.setMode;
-            window.W.timelapse.setMode = function(mode) {
-                this._isPremium = true;
-                if (mode === 'hourly') {
-                    this._mode = 'hourly';
-                    console.log('⏰ Hourly mode forced');
-                }
-                return original?.call(this, mode);
-            };
-        }
+        const timelapseObjects = [window.W?.timelapse, window.timelapse, window.W?.timeline];
+        timelapseObjects.forEach(timelapse => {
+            if (timelapse && typeof timelapse.setMode === 'function') {
+                const original = timelapse.setMode.bind(timelapse);
+                timelapse.setMode = function(mode) {
+                    this._isPremium = true;
+                    this.hourlyEnabled = true;
+                    console.log('setMode called:', mode);
+                    return original(mode);
+                };
+            }
+        });
         
-        // Активируем несколько раз
         setTimeout(activateHourly, 1000);
         setTimeout(activateHourly, 3000);
         setTimeout(activateHourly, 5000);
+        setTimeout(activateHourly, 10000);
         
         console.log('✅ Hourly forecast enabled');
     }
     
-    // ==========================================
-    // 6. МОДИФИКАЦИЯ ИНТЕРФЕЙСА
-    // ==========================================
     function modifyUI() {
-        // Изменяем кнопку логина
-        const loginBtn = document.querySelector('.premium-button, .rhpane__top-icons__login, [class*="login"]');
-        if (loginBtn) {
-            loginBtn.innerHTML = '✓ Premium Active';
-            loginBtn.style.cssText = 'background: #4CAF50 !important; color: white !important;';
-            loginBtn.onclick = (e) => {
-                e.preventDefault();
-                showNotification('Premium аккаунт активен!');
-            };
-        }
+        const loginSelectors = [
+            '.premium-button', 
+            '.rhpane__top-icons__login', 
+            '[class*="login-btn"]',
+            '[class*="premium-btn"]',
+            '.user-button',
+            '#login-button'
+        ];
         
-        // Изменяем премиум кнопку
-        const premiumBtn = document.querySelector('#desktop-premium-icon, [class*="premium-icon"]');
-        if (premiumBtn) {
-            premiumBtn.style.cssText = 'background: #4CAF50 !important; border-radius: 5px;';
-            premiumBtn.title = 'Premium Activated';
-        }
+        loginSelectors.forEach(selector => {
+            const btn = document.querySelector(selector);
+            if (btn && !btn.dataset.bypassed) {
+                btn.dataset.bypassed = 'true';
+                btn.innerHTML = '✓ Premium';
+                btn.style.cssText = `
+                    background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+                    color: white !important;
+                    border: none !important;
+                    border-radius: 5px !important;
+                    padding: 5px 10px !important;
+                `;
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showNotification('Premium аккаунт активен!');
+                };
+            }
+        });
         
-        // Скрываем рекламу апгрейда
-        document.querySelectorAll('[class*="upgrade"], [class*="upsell"], [class*="promo"]').forEach(el => {
-            el.style.display = 'none';
+        const premiumIcons = [
+            '#desktop-premium-icon', 
+            '[class*="premium-icon"]',
+            '.premium-badge',
+            '.pro-badge'
+        ];
+        
+        premiumIcons.forEach(selector => {
+            const icon = document.querySelector(selector);
+            if (icon && !icon.dataset.bypassed) {
+                icon.dataset.bypassed = 'true';
+                icon.style.cssText = `
+                    background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+                    border-radius: 5px !important;
+                `;
+                icon.title = 'Premium Activated ✓';
+            }
+        });
+        
+        // Скрываем рекламу и промо
+        const hideSelectors = [
+            '[class*="upgrade"]',
+            '[class*="upsell"]', 
+            '[class*="promo"]',
+            '[class*="advertisement"]',
+            '[class*="ad-"]',
+            '.premium-promo',
+            '.upgrade-banner',
+            '.subscription-prompt'
+        ];
+        
+        hideSelectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => {
+                if (!el.closest('nav') && !el.closest('header')) {
+                    el.style.display = 'none';
+                }
+            });
         });
         
         console.log('✅ UI modified');
     }
     
-    // ==========================================
-    // 7. ОБНОВЛЕНИЕ КАРТЫ
-    // ==========================================
     function refreshMap() {
         try {
+            // Поиск объекта карты
             const mapObjects = [
                 window.W?.map,
                 window.W?.leafletMap,
                 window.leafletMap,
-                window.map
+                window.map,
+                window.L?.map
             ];
             
             for (let map of mapObjects) {
                 if (map) {
                     if (typeof map.invalidateSize === 'function') {
                         map.invalidateSize();
+                        console.log('✅ Map invalidateSize called');
                     }
+                    
                     if (typeof map._onResize === 'function') {
                         map._onResize();
                     }
-                    console.log('✅ Map refreshed');
+                    
+                    if (map.eachLayer && typeof map.eachLayer === 'function') {
+                        map.eachLayer(layer => {
+                            if (layer.redraw && typeof layer.redraw === 'function') {
+                                layer.redraw();
+                            }
+                        });
+                    }
+                    
                     break;
                 }
             }
+        
+            const animObjects = [window.W?.animation, window.animation, window.W?.particles];
+            animObjects.forEach(anim => {
+                if (anim) {
+                    if (typeof anim.start === 'function') {
+                        try { anim.start(); } catch(e) {}
+                    }
+                    if (typeof anim.resume === 'function') {
+                        try { anim.resume(); } catch(e) {}
+                    }
+                }
+            });
             
-            // Запуск анимации
-            const anim = window.W?.animation || window.animation;
-            if (anim && typeof anim.start === 'function') {
-                anim.start();
-            }
+            console.log('✅ Map refreshed');
         } catch (e) {
-            // Ignore
+            console.log('⚠️ Map refresh error:', e);
         }
     }
     
-    // ==========================================
-    // 8. УВЕДОМЛЕНИЯ
-    // ==========================================
+    function unlockPremiumLayers() {
+        const products = window.W?.products || window.products;
+        
+        if (products && typeof products === 'object') {
+            Object.keys(products).forEach(key => {
+                const product = products[key];
+                if (product && typeof product === 'object') {
+                    product.premium = false;
+                    product.isPremium = false;
+                    product.locked = false;
+                    product.available = true;
+                    product.enabled = true;
+                }
+            });
+            console.log('✅ Premium layers unlocked');
+        }
+        
+        const overlays = window.W?.overlays || window.overlays;
+        if (overlays && typeof overlays === 'object') {
+            Object.keys(overlays).forEach(key => {
+                const overlay = overlays[key];
+                if (overlay && typeof overlay === 'object') {
+                    overlay.premium = false;
+                    overlay.isPremium = false;
+                    overlay.locked = false;
+                }
+            });
+            console.log('✅ Overlays unlocked');
+        }
+    }
+    
+    function enableExtendedData() {
+        const config = window.W?.config || window.config;
+        if (config) {
+            config.maxForecastDays = 14;
+            config.hourlyEnabled = true;
+            config.premiumFeatures = true;
+            config.extendedForecast = true;
+        }
+        
+        const detail = window.W?.detail || window.detail;
+        if (detail) {
+            detail._isPremium = true;
+            detail.maxDays = 14;
+            detail.hourly = true;
+        }
+        
+        console.log('✅ Extended data enabled');
+    }
+    
     function showNotification(message, duration = 4000) {
-        // Удаляем предыдущее
         const existing = document.getElementById('windy-bypass-notification');
         if (existing) existing.remove();
         
         const notification = document.createElement('div');
         notification.id = 'windy-bypass-notification';
         notification.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 24px;">🌪️</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 28px;">🌪️</span>
                 <div>
-                    <div style="font-weight: bold;">Windy Premium Bypass</div>
-                    <div style="font-size: 12px; opacity: 0.9;">${message}</div>
+                    <div style="font-weight: bold; font-size: 15px;">Windy Premium Bypass</div>
+                    <div style="font-size: 13px; opacity: 0.9; margin-top: 2px;">${message}</div>
                 </div>
             </div>
         `;
@@ -415,110 +699,171 @@
             right: 20px;
             background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
             color: white;
-            padding: 15px 20px;
-            border-radius: 12px;
+            padding: 16px 22px;
+            border-radius: 14px;
             z-index: 999999;
-            font-family: 'Segoe UI', Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             font-size: 14px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            animation: slideIn 0.3s ease;
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.35);
+            animation: windySlideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            border: 1px solid rgba(255,255,255,0.2);
         `;
         
-        // Добавляем анимацию
-        const styleEl = document.createElement('style');
-        styleEl.textContent = `
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-            @keyframes slideOut {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(100%); opacity: 0; }
-            }
-        `;
-        document.head.appendChild(styleEl);
+        if (!document.getElementById('windy-bypass-animations')) {
+            const styleEl = document.createElement('style');
+            styleEl.id = 'windy-bypass-animations';
+            styleEl.textContent = `
+                @keyframes windySlideIn {
+                    from { 
+                        transform: translateX(120%); 
+                        opacity: 0; 
+                    }
+                    to { 
+                        transform: translateX(0); 
+                        opacity: 1; 
+                    }
+                }
+                @keyframes windySlideOut {
+                    from { 
+                        transform: translateX(0); 
+                        opacity: 1; 
+                    }
+                    to { 
+                        transform: translateX(120%); 
+                        opacity: 0; 
+                    }
+                }
+            `;
+            document.head.appendChild(styleEl);
+        }
+        
         document.body.appendChild(notification);
         
         setTimeout(() => {
-            notification.style.animation = 'slideOut 0.3s ease forwards';
-            setTimeout(() => notification.remove(), 300);
+            notification.style.animation = 'windySlideOut 0.4s ease forwards';
+            setTimeout(() => notification.remove(), 400);
         }, duration);
     }
     
-    // ==========================================
-    // ГЛАВНАЯ ФУНКЦИЯ
-    // ==========================================
-    function executeBypass() {
-        if (bypassActive) {
-            console.log('⚠️ Bypass already active');
-            return;
-        }
+    function setupMonitoring() {
+        let checkCount = 0;
+        const maxChecks = 60;
         
-        bypassActive = true;
-        console.log('🚀 Executing Windy Premium Bypass...');
-        
-        // Выполняем все модули
-        setupRequestBlocking();
-        hackSubscriptionSystem();
-        unlockMapLayers();
-        hackCalendarSystem();
-        enableHourlyForecast();
-        
-        // С задержкой для UI
-        setTimeout(() => {
-            modifyUI();
-            refreshMap();
-        }, 1000);
-        
-        // Периодическое обновление
-        let updates = 0;
-        const interval = setInterval(() => {
-            unlockMapLayers();
-            refreshMap();
-            updates++;
+        const monitor = setInterval(() => {
+            checkCount++;
             
-            if (updates >= 10) {
-                clearInterval(interval);
-                console.log('✅ Bypass maintenance complete');
+            if (!window.__windyBypassActive) {
+                window.__windyBypassActive = true;
+            }
+            
+            if (checkCount % 3 === 0) {
+                unlockMapLayers();
+            }
+            if (checkCount % 5 === 0) {
+                hackCalendarSystem();
+            }
+            if (checkCount % 10 === 0) {
+                modifyUI();
+                refreshMap();
+            }
+            
+            if (checkCount >= maxChecks) {
+                clearInterval(monitor);
+                console.log('✅ Monitoring completed');
             }
         }, 5000);
         
-        showNotification('Premium функции активированы! ✓');
+        console.log('✅ Monitoring started');
+    }
+    
+    function executeBypass() {
+        console.log('Executing Windy Premium Bypass...');
         
-        console.log(`
-╔══════════════════════════════════════╗
-║   🌪️ WINDY PREMIUM BYPASS ACTIVE    ║
-╠══════════════════════════════════════╣
-║ ✓ 10-дневный прогноз                ║
-║ ✓ Почасовой прогноз                 ║
-║ ✓ Все слои карты                    ║
-║ ✓ Расширенные данные                ║
-║ ✓ Без рекламы                       ║
-╚══════════════════════════════════════╝
-        `);
+        try {
+            setupRequestBlocking();
+            hackSubscriptionSystem();
+            unlockMapLayers();
+            hackCalendarSystem();
+            enableHourlyForecast();
+            unlockPremiumLayers();
+            enableExtendedData();
+            
+            setTimeout(() => {
+                modifyUI();
+                refreshMap();
+            }, 1500);
+            
+            setTimeout(() => {
+                modifyUI();
+                refreshMap();
+                unlockPremiumLayers();
+            }, 4000);
+            
+            setupMonitoring();
+            
+            showNotification('Все премиум функции активированы! ✓', 5000);
+            
+            console.log(`
+╔══════════════════════════════════════════════╗
+║      WINDY PREMIUM BYPASS v1.0 ACTIVE        ║
+╠══════════════════════════════════════════════╣
+║                                              ║
+║  ✓ 10-дневный прогноз погоды                ║
+║  ✓ Почасовой детальный прогноз              ║
+║  ✓ Все слои карты разблокированы            ║
+║  ✓ Расширенные метеоданные                  ║
+║  ✓ Без рекламы и промо                      ║
+║  ✓ Полный доступ к функциям                 ║
+║                                              ║
+╠══════════════════════════════════════════════╣
+║  Bypass работает! Наслаждайтесь погодой! 🌤️  ║
+╚══════════════════════════════════════════════╝
+            `);
+            
+        } catch (error) {
+            console.error('❌ Bypass error:', error);
+            showNotification('Ошибка активации. Попробуйте обновить страницу.', 5000);
+        }
     }
     
-    // ==========================================
-    // ЗАПУСК
-    // ==========================================
-    
-    // Проверяем что мы на Windy
-    if (!window.location.hostname.includes('windy.com')) {
-        alert('⚠️ Этот скрипт работает только на windy.com!\n\nПерейдите на https://www.windy.com и запустите снова.');
-        return;
+    function waitForWindy() {
+        let attempts = 0;
+        const maxAttempts = 30;
+        
+        const check = () => {
+            attempts++;
+            
+            const windyLoaded = !!(
+                window.W || 
+                window.wt || 
+                document.querySelector('.leaflet-container') ||
+                document.querySelector('#map-container') ||
+                document.querySelector('canvas')
+            );
+            
+            if (windyLoaded) {
+                console.log('✅ Windy detected after', attempts, 'attempts');
+                setTimeout(executeBypass, 500);
+                return;
+            }
+            
+            if (attempts < maxAttempts) {
+                setTimeout(check, 300);
+            } else {
+                console.log('⚠️ Windy detection timeout, forcing bypass...');
+                executeBypass();
+            }
+        };
+        
+        check();
     }
     
-    // Запускаем с задержкой
     if (document.readyState === 'complete') {
-        setTimeout(executeBypass, 1000);
+        waitForWindy();
     } else {
-        window.addEventListener('load', () => setTimeout(executeBypass, 2000));
+        window.addEventListener('load', () => {
+            setTimeout(waitForWindy, 500);
+        });
     }
-    
-    // Также по DOMContentLoaded
-    document.addEventListener('DOMContentLoaded', () => setTimeout(executeBypass, 1500));
-    
-    // Fallback
-    setTimeout(executeBypass, 3000);
     
 })();
