@@ -201,7 +201,6 @@
             [class*="tile"] {
                 visibility: visible !important;
                 opacity: 1 !important;
-                display: block !important;
             }
             
             .premium-overlay, 
@@ -667,7 +666,7 @@
                 if (btn.dataset.bypassedAccount) return;
                 btn.dataset.bypassedAccount = 'true';
                 
-                btn.innerHTML = `<span class="bypass-icon">👤</span><span>${CONFIG.accountText}</span>`;
+                btn.innerHTML = `<span class="bypass-icon">🆔</span><span>${CONFIG.accountText}</span>`;
                 
                 btn.removeAttribute('class');
                 btn.className = 'bypass-ui-btn bypass-account-badge';
@@ -701,7 +700,6 @@
     
     function refreshMap() {
         try {
-            // Поиск объекта карты
             const mapObjects = [
                 window.W?.map,
                 window.W?.leafletMap,
@@ -990,5 +988,6 @@
     }
     
 })();
+
 
 
