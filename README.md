@@ -49,6 +49,8 @@
     Данный проект создан исключительно в образовательных целях для демонстрации работы JavaScript и веб-технологий. Автор не несет ответственности за любые последствия использования данного инструмента. Используя скрипт, вы принимаете на себя все риски, связанные с нарушением условий использования сторонних сервисов.
 </div>
 
+## Star History
+
 [![Star History Chart](https://api.star-history.com/svg?repos=Cruitac345/WindyUnlocker&type=date&legend=top-left)](https://www.star-history.com/#Cruitac345/WindyUnlocker&type=date&legend=top-left)
 
 ---
