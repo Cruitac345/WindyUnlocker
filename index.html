@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windy Bypass</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Windy Premium Bypass</h1>
+            <p class="subtitle">Активация премиум функций</p>
+        </header>
+
+        <main>
+            <!-- Букмарклет -->
+            <section class="method">
+                <h2>Букмарклет</h2>
+                <p>Перетащите на панель закладок</p>
+                
+                <a href="javascript:(function(){const s=document.createElement('script');s.src='https://user.github.io/windy-bypass/bypass.js?'+Date.now();document.head.appendChild(s);})();" 
+                   class="bookmarklet-btn" 
+                   onclick="event.preventDefault();alert('Перетащите на панель закладок');">
+                    Windy Bypass
+                </a>
+                
+                <div class="instructions">
+                    <h3>Инструкция</h3>
+                    <ol>
+                        <li>Перетащите кнопку на панель закладок</li>
+                        <li>Откройте <a href="https://www.windy.com" target="_blank">windy.com</a></li>
+                        <li>Дождитесь загрузки карты</li>
+                        <li>Нажмите букмарклет</li>
+                    </ol>
+                </div>
+            </section>
+
+            <!-- Консоль -->
+            <section class="method">
+                <h2>Консоль</h2>
+                <p>F12 → Console → вставить код</p>
+                <div class="code-container">
+                    <button class="copy-btn" onclick="copyCode()">Копировать</button>
+                    <pre id="console-code"></pre>
+                </div>
+            </section>
+
+            <!-- Tampermonkey -->
+            <section class="method">
+                <h2>Userscript</h2>
+                <p>Автоматический запуск при каждом посещении Windy</p>
+                
+                <p class="method-description">
+                    Tampermonkey — браузерное расширение для запуска пользовательских скриптов. 
+                    Установите расширение, затем добавьте скрипт — он будет активироваться автоматически.
+                </p>
+                
+                <button class="download-btn" onclick="downloadUserscript()">Скачать userscript</button>
+                
+                <div class="links-list">
+                    <a href="https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank">Chrome</a>
+                    <a href="https://addons.mozilla.org/firefox/addon/tampermonkey/" target="_blank">Firefox</a>
+                    <a href="https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd" target="_blank">Edge</a>
+                    <a href="https://apps.apple.com/app/tampermonkey/id1482490089" target="_blank">Safari</a>
+                </div>
+            </section>
+
+            <!-- Функции -->
+            <section class="status-section">
+                <h2>Функции</h2>
+                <div class="features-grid">
+                    <div class="feature">
+                        <span class="icon">✓</span>
+                        <div class="feature-text">
+                            <span class="feature-title">10-дневный прогноз</span>
+                            <span class="feature-desc">Расширенный период</span>
+                        </div>
+                    </div>
+                    <div class="feature">
+                        <span class="icon">✓</span>
+                        <div class="feature-text">
+                            <span class="feature-title">Почасовой режим</span>
+                            <span class="feature-desc">Детализация по часам</span>
+                        </div>
+                    </div>
+                    <div class="feature">
+                        <span class="icon">✓</span>
+                        <div class="feature-text">
+                            <span class="feature-title">Все слои карты</span>
+                            <span class="feature-desc">Премиум визуализация</span>
+                        </div>
+                    </div>
+                    <div class="feature">
+                        <span class="icon">✓</span>
+                        <div class="feature-text">
+                            <span class="feature-title">Расширенные данные</span>
+                            <span class="feature-desc">Полная метеоинформация</span>
+                        </div>
+                    </div>
+                    <div class="feature">
+                        <span class="icon">✓</span>
+                        <div class="feature-text">
+                            <span class="feature-title">Без рекламы</span>
+                            <span class="feature-desc">Блокировка промо</span>
+                        </div>
+                    </div>
+                    <div class="feature">
+                        <span class="icon">✓</span>
+                        <div class="feature-text">
+                            <span class="feature-title">Полный доступ</span>
+                            <span class="feature-desc">Все возможности</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Только для образовательных целей</p>
+            <p><a href="https://github.com/Cruitac345/WindyUnlocker">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
