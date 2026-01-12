@@ -1,5 +1,11 @@
 (function() {
     'use strict';
+
+    const CONFIG = {
+        bypassVersion: '1.0',
+        menuRightMargin: '15px',
+        accountText: 'Tester'
+    };
     
     if (!location.hostname.includes('windy.com')) {
         alert('⚠️ Откройте windy.com и запустите снова!');
@@ -221,6 +227,30 @@
                 pointer-events: none !important;
                 height: 0 !important;
                 overflow: hidden !important;
+            }
+
+            #www-layer-menu,
+            .layer-menu,
+            [class*="layer-menu"],
+            #layer-menu {
+                right: ${CONFIG.menuRightMargin} !important;
+                left: auto !important;
+                position: absolute !important;
+                transform: none !important;
+                margin-right: 0 !important;
+                z-index: 500 !important;
+            }
+    
+            .rhpane, #rhpane, [class*="rhpane"] {
+                right: 0 !important;
+                left: auto !important;
+                margin-right: 0 !important;
+            }
+    
+            .weather-tools-box,
+            [class*="tools-box"] {
+                right: ${CONFIG.menuRightMargin} !important;
+                left: auto !important;
             }
             
             .blurred, 
@@ -620,51 +650,30 @@
                 }
             });
         });
-        
+
         const accountSelectors = [
-            '.rhpane__top-icons__login',
+        '.rhpane__top-icons__login', 
+            '.login-button', 
             '[class*="login-btn"]',
-            '[class*="login-button"]',
-            '[class*="account-btn"]',
-            '[class*="user-button"]',
-            '#login-button',
-            'a[href*="login"]',
-            'a[href*="account"]'
+            '#login-button'
         ];
         
         accountSelectors.forEach(selector => {
             document.querySelectorAll(selector).forEach(btn => {
-                if (btn && !btn.dataset.bypassed && !btn.classList.contains('windy-bypass-premium')) {
-                    btn.dataset.bypassed = 'true';
-                    
-                    btn.innerHTML = '';
-                    btn.classList.add('windy-bypass-btn', 'windy-bypass-account');
-                    
-                    const icon = document.createElement('span');
-                    icon.className = 'bypass-icon';
-                    icon.textContent = '👤';
-                    btn.appendChild(icon);
-                    
-                    const text = document.createElement('span');
-                    text.className = 'bypass-text';
-                    text.textContent = 'tester';
-                    btn.appendChild(text);
-                    
-                    btn.onclick = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        return false;
-                    };
-                    btn.onmousedown = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        return false;
-                    };
-                    
-                    btn.removeAttribute('href');
-                    btn.style.pointerEvents = 'none';
-                    btn.title = 'tester';
+                if (btn.classList.contains('bypass-premium-badge')) {
+                    btn.classList.remove('bypass-premium-badge');
                 }
+                
+                if (btn.dataset.bypassedAccount) return;
+                btn.dataset.bypassedAccount = 'true';
+                
+                btn.innerHTML = `<span class="bypass-icon">👤</span><span>${CONFIG.accountText}</span>`;
+                
+                btn.removeAttribute('class');
+                btn.className = 'bypass-ui-btn bypass-account-badge';
+                
+                btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); return false; };
+                btn.setAttribute('title', 'Tester Account Active');
             });
         });
         
@@ -981,4 +990,5 @@
     }
     
 })();
+
 
