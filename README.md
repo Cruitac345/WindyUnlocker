@@ -49,6 +49,8 @@
     Данный проект создан исключительно в образовательных целях для демонстрации работы JavaScript и веб-технологий. Автор не несет ответственности за любые последствия использования данного инструмента. Используя скрипт, вы принимаете на себя все риски, связанные с нарушением условий использования сторонних сервисов.
 </div>
 
+<iframe style="width:100%;height:auto;min-width:600px;min-height:400px;" src="https://www.star-history.com/embed?secret=#Cruitac345/WindyUnlocker&type=date&legend=top-left" frameBorder="0"></iframe>
+
 ---
 
 ## Лицензия
